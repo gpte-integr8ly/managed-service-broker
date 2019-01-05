@@ -71,8 +71,13 @@ func getRoleObj() *rbacv1beta1.Role {
 		Rules: []rbacv1beta1.PolicyRule{
 			{
 				APIGroups: []string{""},
-				Resources: []string{"pods", "services", "endpoints", "persistentvolumeclaims", "configmaps", "events", "secrets", "serviceaccounts"},
-				Verbs:     []string{"*"},
+				Resources: []string{"pods", "services", "endpoints", "persistentvolumeclaims", "configmaps", "secrets", "serviceaccounts"},
+				Verbs:     []string{"create", "delete", "deletecollection", "get", "list", "update", "watch"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"events"},
+				Verbs:     []string{"get", "list"},
 			},
 			{
 				APIGroups: []string{""},
@@ -80,29 +85,19 @@ func getRoleObj() *rbacv1beta1.Role {
 				Verbs:     []string{"get"},
 			},
 			{
-				APIGroups: []string{"apps"},
-				Resources: []string{"deployments", "daemonsets", "replicasets", "statefulsets"},
-				Verbs:     []string{"*"},
-			},
-			{
-				APIGroups: []string{"", "apps.openshift.io"},
+				APIGroups: []string{"apps.openshift.io"},
 				Resources: []string{"deploymentconfigs"},
-				Verbs:     []string{"*"},
+				Verbs:     []string{"create", "delete", "deletecollection", "get", "list", "update", "watch"},
 			},
 			{
-				APIGroups: []string{"", "routes.openshift.io"},
+				APIGroups: []string{"route.openshift.io"},
 				Resources: []string{"routes"},
-				Verbs:     []string{"*"},
-			},
-			{
-				APIGroups: []string{"monitoring.coreos.com"},
-				Resources: []string{"servicemonitors"},
-				Verbs:     []string{"get", "create"},
+				Verbs:     []string{"create", "delete", "deletecollection", "get", "list", "update", "watch"},
 			},
 			{
 				APIGroups: []string{"gpte.integreatly.org"},
-				Resources: []string{"*"},
-				Verbs:     []string{"*"},
+				Resources: []string{"rhpamdevs", "rhpamdevs/finalizers"},
+				Verbs:     []string{"create", "delete", "deletecollection", "get", "list", "update", "watch"},
 			},
 		},
 	}
