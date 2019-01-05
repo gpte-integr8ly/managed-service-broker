@@ -4,15 +4,17 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/integr8ly/managed-service-broker/pkg/deploys/apicurio"
-	"github.com/integr8ly/managed-service-broker/pkg/deploys/che"
-	"github.com/integr8ly/managed-service-broker/pkg/deploys/fuse"
-	"github.com/integr8ly/managed-service-broker/pkg/deploys/launcher"
 	"os"
 	"os/signal"
 	"path"
 	"strconv"
 	"syscall"
+
+	"github.com/integr8ly/managed-service-broker/pkg/deploys/apicurio"
+	"github.com/integr8ly/managed-service-broker/pkg/deploys/che"
+	"github.com/integr8ly/managed-service-broker/pkg/deploys/fuse"
+	"github.com/integr8ly/managed-service-broker/pkg/deploys/launcher"
+	"github.com/integr8ly/managed-service-broker/pkg/deploys/rhpam"
 
 	"github.com/integr8ly/managed-service-broker/pkg/broker"
 	"github.com/integr8ly/managed-service-broker/pkg/broker/controller"
@@ -59,6 +61,7 @@ const (
 	cheServiceName        = "che"
 	launcherServiceName   = "launcher"
 	apicurioServiceName   = "apicurio"
+	rhpamServiceName      = "rhpam"
 )
 
 func runWithContext(ctx context.Context) error {
@@ -112,6 +115,9 @@ func runWithContext(ctx context.Context) error {
 	if shouldRegisterService(apicurioServiceName) {
 		deployers = append(deployers, apicurio.NewDeployer())
 	}
+	if shouldRegisterService(rhpamServiceName) {
+		deployers = append(deployers, rhpam.NewDeployer(k8sClient, osClient))
+	}
 	ctrlr := controller.CreateController(deployers)
 
 	ctrlr.Catalog()
@@ -150,6 +156,8 @@ func shouldRegisterService(serviceName string) bool {
 		return os.Getenv("THREESCALE_DASHBOARD_URL") != ""
 	case apicurioServiceName:
 		return os.Getenv("APICURIO_DASHBOARD_URL") != ""
+	case rhpamServiceName:
+		return os.Getenv("RHPAM_ENABLED") != "false"
 	}
 	return false
 }
