@@ -67,6 +67,8 @@ objects:
               value: ${MONITORING_KEY}
             - name: FUSE_OPERATOR_RESOURCES_URL
               value: ${FUSE_OPERATOR_RESOURCES_URL}
+            - name: RHPAM_ENABLED
+              value: ${RHPAM_ENABLED}
             ports:
             - containerPort: 8080
             readinessProbe:
@@ -120,6 +122,12 @@ objects:
       - syndesises
       - syndesises/finalizers
       verbs: ["create", "delete", "deletecollection", "get", "list", "update", "watch"]
+    - apiGroups:
+      - gpte.integreatly.org
+      resources:
+      - rhpamdevs
+      - rhpamdevs/finalizers
+      verbs: ["create", "delete", "deletecollection", "get", "list", "update", "watch"] 
     - apiGroups:
       - ""
       resources:
@@ -200,6 +208,10 @@ parameters:
   - name: FUSE_OPERATOR_RESOURCES_URL
     description: Fuse operator template url
     value: "https://raw.githubusercontent.com/syndesisio/fuse-online-install/1.5/resources/fuse-online-operator.yml"
+
+  - name: RHPAM_ENABLED
+    description: whether to show a service class for rhpam
+    value: "true"
     required: true
 
   - name: IMAGE_ORG
