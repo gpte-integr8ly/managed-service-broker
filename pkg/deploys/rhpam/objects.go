@@ -2,7 +2,7 @@ package rhpam
 
 import (
 	brokerapi "github.com/integr8ly/managed-service-broker/pkg/broker"
-	"github.com/integr8ly/managed-service-broker/pkg/deploys/rhpam/pkg/apis/gpte/v1alpha1"
+	"github.com/integr8ly/managed-service-broker/pkg/deploys/rhpam/pkg/apis/rhpam/v1alpha1"
 	appsv1 "github.com/openshift/api/apps/v1"
 	authv1 "github.com/openshift/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -95,7 +95,7 @@ func getRoleObj() *rbacv1beta1.Role {
 				Verbs:     []string{"create", "delete", "deletecollection", "get", "list", "update", "watch"},
 			},
 			{
-				APIGroups: []string{"gpte.integreatly.org"},
+				APIGroups: []string{"rhpam.integreatly.org"},
 				Resources: []string{"rhpamdevs", "rhpamdevs/finalizers"},
 				Verbs:     []string{"create", "delete", "deletecollection", "get", "list", "update", "watch"},
 			},
@@ -330,7 +330,7 @@ func getRhpamObj(deployNamespace string) *v1alpha1.RhpamDev {
 	return &v1alpha1.RhpamDev{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "RhpamDev",
-			APIVersion: "gpte.integreatly.org/v1alpha1",
+			APIVersion: "rhpam.integreatly.org/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:    deployNamespace,

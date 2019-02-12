@@ -9,7 +9,7 @@ import (
 	"github.com/golang/glog"
 	brokerapi "github.com/integr8ly/managed-service-broker/pkg/broker"
 	"github.com/integr8ly/managed-service-broker/pkg/clients/openshift"
-	"github.com/integr8ly/managed-service-broker/pkg/deploys/rhpam/pkg/apis/gpte/v1alpha1"
+	"github.com/integr8ly/managed-service-broker/pkg/deploys/rhpam/pkg/apis/rhpam/v1alpha1"
 	k8sClient "github.com/operator-framework/operator-sdk/pkg/k8sclient"
 	"github.com/operator-framework/operator-sdk/pkg/util/k8sutil"
 	"github.com/pkg/errors"
@@ -173,7 +173,7 @@ func (rd *RhpamDeployer) createRoleBindings(namespace string, userInfo v1.UserIn
 	for _, sysRoleBinding := range getSystemRoleBindings(namespace) {
 		_, err := k8sclient.RbacV1beta1().RoleBindings(namespace).Create(&sysRoleBinding)
 		if err != nil && !strings.Contains(err.Error(), "already exists") {
-			return errors.Wrapf(err, "failed to create rolebinding for %s", &sysRoleBinding.ObjectMeta.Name)
+			return errors.Wrapf(err, "failed to create rolebinding for %s", sysRoleBinding.ObjectMeta.Name)
 		}
 	}
 

@@ -123,7 +123,7 @@ objects:
       - syndesises/finalizers
       verbs: ["create", "delete", "deletecollection", "get", "list", "update", "watch"]
     - apiGroups:
-      - gpte.integreatly.org
+      - rhpam.integreatly.org
       resources:
       - rhpamdevs
       - rhpamdevs/finalizers

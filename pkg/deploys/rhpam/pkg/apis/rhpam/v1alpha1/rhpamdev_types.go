@@ -18,7 +18,7 @@ type RhpamDevStatus struct {
 type RhpamConfig struct {
 	DatabaseConfig        RhpamDatabaseConfig        `json:"database,omitempty"`
 	BusinessCentralConfig RhpamBusinessCentralConfig `json:"businessCentral,omitempty"`
-	KieServerConfig       RhpamKieServerConfig       `json:"kieserver,omitempty"`
+	KieServerConfig       RhpamKieServerConfig       `json:"kieServer,omitempty"`
 }
 
 type RhpamDatabaseConfig struct {
@@ -31,20 +31,23 @@ type RhpamDatabaseConfig struct {
 
 type RhpamBusinessCentralConfig struct {
 	PersistentVolumeCapacity string `json:"persistentVolumeCapacity,omitempty"`
+	CpuRequest               string `json:"cpuRequest,omitempty"`
+	CpuLimit                 string `json:"cpuLimit,omitempty"`
+	MemoryRequest            string `json:"memoryRequest,omitempty"`
 	MemoryLimit              string `json:"memoryLimit,omitempty"`
-	JavaMaxMemRatio          string `json:"javaMaxMemRatio,omitempty"`
-	JavaInitialMemRatio      string `json:"JavaInitialMemRatio,omitempty"`
-	GcMaxSize                string `json:"gcmaxSize,omitempty"`
-	KieMbeans                string `json:"kieMbeans,omitempty"`
+	GcMaxMetaSize            string `json:"gcMaxMetaSize,omitempty"`
+	KieMBeans                string `json:"kieMbeans,omitempty"`
 	JavaOptsAppend           string `json:"javaOptsAppend,omitempty"`
 }
 
 type RhpamKieServerConfig struct {
+	CpuRequest          string `json:"cpuRequest,omitempty"`
+	CpuLimit            string `json:"cpuLimit,omitempty"`
+	MemoryRequest       string `json:"memoryRequest,omitempty"`
 	MemoryLimit         string `json:"memoryLimit,omitempty"`
-	JavaMaxMemRatio     string `json:"javaMaxMemRatio,omitempty"`
-	JavaInitialMemRatio string `json:"JavaInitialMemRatio,omitempty"`
-	KieMbeans           string `json:"kieMbeans,omitempty"`
-	KieServerId         string `json:"kieserverId,omitempty"`
+	GcMaxMetaSize       string `json:"gcMaxMetaSize,omitempty"`
+	KieMBeans           string `json:"kieMbeans,omitempty"`
+	KieServerId         string `json:"kieServerId,omitempty"`
 	DroolsFilterClasses string `json:"filterClasses,omitempty"`
 	BypassAuthUser      string `json:"bypassAuthUser,omitEmpty"`
 }

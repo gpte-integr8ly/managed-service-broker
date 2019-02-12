@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	group   = "gpte.integreatly.org"
+	group   = "rhpam.integreatly.org"
 	version = "v1alpha1"
 )
 
