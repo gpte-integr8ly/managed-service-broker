@@ -251,6 +251,13 @@ parameters:
 
   - name: MONITORING_KEY
     description: This value is applied to fuse namespaces to allow monitoring
+
+  - name: SSO_NAMESPACE
+    description: namespace of the SSO server
+    required: true
+
+  - name: SSO_ADMIN_CREDENTIALS_SECRET
+    description: secret with the SSO admin credentials
     required: true
 
   - name: CA_BUNDLE

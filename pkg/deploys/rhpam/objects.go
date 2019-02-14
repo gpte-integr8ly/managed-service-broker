@@ -1,6 +1,8 @@
 package rhpam
 
 import (
+	"os"
+
 	brokerapi "github.com/integr8ly/managed-service-broker/pkg/broker"
 	"github.com/integr8ly/managed-service-broker/pkg/deploys/rhpam/pkg/apis/rhpam/v1alpha1"
 	appsv1 "github.com/openshift/api/apps/v1"
@@ -12,18 +14,23 @@ import (
 
 const (
 	RHPAM_OPERATOR_IMAGE_STREAMS_NAMESPACE string = "openshift"
-	RHPAM_OPERATOR_IMAGE_STREAM_NAME       string = "rhpam-dev-operator:v0.0.1"
+	RHPAM_OPERATOR_IMAGE_STREAM_NAME       string = "rhpam-dev-operator:v0.0.2"
+)
+
+var (
+	SSO_NAMESPACE                string = lookupEnv("SSO_NAMESPACE")
+	SSO_ADMIN_CREDENTIALS_SECRET string = lookupEnv("SSO_ADMIN_CREDENTIALS_SECRET")
 )
 
 func getCatalogServicesObj() []*brokerapi.Service {
 	return []*brokerapi.Service{
 		{
-			Name:        "rhpam",
+			Name:        "rhpam-dev",
 			ID:          "rhpam-service-id",
-			Description: "rhpam",
+			Description: "rhpam-dev",
 			Metadata: map[string]string{
-				"serviceName": "rhpam",
-				"serviceType": "rhpam",
+				"serviceName": "rhpam-dev",
+				"serviceType": "rhpam-dev",
 			},
 			Plans: []brokerapi.ServicePlan{
 				{
@@ -62,6 +69,52 @@ func getServiceAccountObj() *corev1.ServiceAccount {
 	}
 }
 
+// Rhpam operator clusterrole
+func getClusterRoleObj(namespace string) *rbacv1beta1.ClusterRole {
+	return &rbacv1beta1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "rhpam-dev-operator-" + namespace,
+		},
+		Rules: []rbacv1beta1.PolicyRule{
+			{
+				APIGroups: []string{"rhpam.integreatly.org"},
+				Resources: []string{"rhpamdevs", "rhpamdevs/finalizers", "rhpamusers", "rhpamusers/finalizers"},
+				Verbs:     []string{"get", "list", "watch"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"pods", "services", "endpoints", "persistentvolumeclaims", "configmaps", "secrets", "serviceaccounts"},
+				Verbs:     []string{"get", "list", "watch"},
+			},
+			{
+				APIGroups: []string{"apps.openshift.io"},
+				Resources: []string{"deploymentconfigs"},
+				Verbs:     []string{"get", "list", "watch"},
+			},
+		},
+	}
+}
+
+func getClusterRoleBindingObj(namespace string) *rbacv1beta1.ClusterRoleBinding {
+	return &rbacv1beta1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "rhpam-dev-operator-" + namespace,
+		},
+		RoleRef: rbacv1beta1.RoleRef{
+			Name:     "rhpam-dev-operator-" + namespace,
+			Kind:     "ClusterRole",
+			APIGroup: "rbac.authorization.k8s.io",
+		},
+		Subjects: []rbacv1beta1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      "rhpam-dev-operator",
+				Namespace: namespace,
+			},
+		},
+	}
+}
+
 // Rhpam operator role
 func getRoleObj() *rbacv1beta1.Role {
 	return &rbacv1beta1.Role{
@@ -96,7 +149,7 @@ func getRoleObj() *rbacv1beta1.Role {
 			},
 			{
 				APIGroups: []string{"rhpam.integreatly.org"},
-				Resources: []string{"rhpamdevs", "rhpamdevs/finalizers"},
+				Resources: []string{"rhpamdevs", "rhpamdevs/finalizers", "rhpamusers", "rhpamusers/finalizers"},
 				Verbs:     []string{"create", "delete", "deletecollection", "get", "list", "update", "watch"},
 			},
 		},
@@ -280,6 +333,14 @@ func getDeploymentConfigObj() *appsv1.DeploymentConfig {
 									Name:  "OPERATOR_NAME",
 									Value: "rhpam-dev-operator",
 								},
+								{
+									Name:  "SSO_NAMESPACE",
+									Value: SSO_NAMESPACE,
+								},
+								{
+									Name:  "SSO_ADMIN_CREDENTIALS_SECRET",
+									Value: SSO_ADMIN_CREDENTIALS_SECRET,
+								},
 							},
 							Ports: []corev1.ContainerPort{
 								{
@@ -325,8 +386,8 @@ func getDeploymentConfigObj() *appsv1.DeploymentConfig {
 	}
 }
 
-// Rhpam Custom Resource
-func getRhpamObj(deployNamespace string) *v1alpha1.RhpamDev {
+// Rhpam dev Custom Resource
+func getRhpamDevObj(deployNamespace string) *v1alpha1.RhpamDev {
 	return &v1alpha1.RhpamDev{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "RhpamDev",
@@ -334,8 +395,34 @@ func getRhpamObj(deployNamespace string) *v1alpha1.RhpamDev {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:    deployNamespace,
-			GenerateName: "rhpam-",
+			GenerateName: "rhpamdev-",
 		},
-		Spec: v1alpha1.RhpamDevSpec{},
+		Spec: v1alpha1.RhpamDevSpec{
+			Domain: lookupEnv("ROUTE_SUFFIX"),
+		},
 	}
+}
+
+// Rhpam user Custom Resource
+func getRhpamUserObj(deployNamespace string) *v1alpha1.RhpamUser {
+	return &v1alpha1.RhpamUser{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "RhpamUser",
+			APIVersion: "rhpam.integreatly.org/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:    deployNamespace,
+			GenerateName: "rhpamuser-",
+		},
+		Spec: v1alpha1.RhpamUserSpec{
+			Roles: []*v1alpha1.Role{&v1alpha1.Role{Name: "group1"}, &v1alpha1.Role{Name: "group2"}},
+			Users: []*v1alpha1.User{&v1alpha1.User{Username: "user1", Password: "password", Roles: []string{"user", "kie-server", "group1"}},
+				&v1alpha1.User{Username: "user2", Password: "password", Roles: []string{"user", "kie-server", "group2"}}},
+		},
+	}
+}
+
+func lookupEnv(env string) string {
+	value, _ := os.LookupEnv(env)
+	return value
 }

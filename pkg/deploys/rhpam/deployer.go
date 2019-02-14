@@ -16,6 +16,7 @@ import (
 	"k8s.io/api/authentication/v1"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -77,6 +78,24 @@ func (rd *RhpamDeployer) Deploy(req *brokerapi.ProvisionRequest, async bool) (*b
 		}, err
 	}
 
+	// Clusterrole
+	_, err = rd.k8sClient.RbacV1beta1().ClusterRoles().Create(getClusterRoleObj(namespace))
+	if err != nil {
+		glog.Errorf("failed to create rhpam clusterrole: %+v", err)
+		return &brokerapi.ProvisionResponse{
+			Code: http.StatusInternalServerError,
+		}, errors.Wrap(err, "failed to create clusterrole for rhpam service")
+	}
+
+	// ClusterRoleBinding
+	_, err = rd.k8sClient.RbacV1beta1().ClusterRoleBindings().Create(getClusterRoleBindingObj(namespace))
+	if err != nil {
+		glog.Errorf("failed to create rhpam clusterrolebinding: %+v", err)
+		return &brokerapi.ProvisionResponse{
+			Code: http.StatusInternalServerError,
+		}, errors.Wrap(err, "failed to create clusterrolebinding for rhpam service")
+	}
+
 	// DeploymentConfig
 	err = rd.createRhpamOperator(namespace, rd.osClient)
 	if err != nil {
@@ -86,9 +105,17 @@ func (rd *RhpamDeployer) Deploy(req *brokerapi.ProvisionRequest, async bool) (*b
 		}, err
 	}
 
-	// Rhpam custom resource
-	cr := rd.createRhpamCustomResourceTemplate(namespace)
-	if err := rd.createRhpamCustomResource(namespace, cr); err != nil {
+	// Rhpam custom resources
+	rhpamdevCr := rd.createRhpamDevCustomResourceTemplate(namespace)
+	if err := rd.createRhpamDevCustomResource(namespace, rhpamdevCr); err != nil {
+		glog.Errorln(err)
+		return &brokerapi.ProvisionResponse{
+			Code: http.StatusInternalServerError,
+		}, err
+	}
+
+	rhpamuserCr := rd.createRhpamUserCustomResourceTemplate(namespace)
+	if err := rd.createRhpamUserCustomResource(namespace, rhpamuserCr); err != nil {
 		glog.Errorln(err)
 		return &brokerapi.ProvisionResponse{
 			Code: http.StatusInternalServerError,
@@ -104,7 +131,34 @@ func (rd *RhpamDeployer) Deploy(req *brokerapi.ProvisionRequest, async bool) (*b
 
 func (rd *RhpamDeployer) RemoveDeploy(req *brokerapi.DeprovisionRequest, async bool) (*brokerapi.DeprovisionResponse, error) {
 	ns := "rhpam-" + req.InstanceId
-	err := rd.k8sClient.CoreV1().Namespaces().Delete(ns, &metav1.DeleteOptions{})
+	//TODO: remove clusterrole, clusterrolebinding, rhpadev user objec, rhpamdev object
+	glog.Info("Deleting rhpamuser resources in namespace ", ns)
+	err := rd.deleteRhpamUserCustomResources(ns)
+	if err != nil {
+		return &brokerapi.DeprovisionResponse{}, errors.Wrap(err, fmt.Sprintf("failed to delete rhpamuser resources in namespace %s", ns))
+	}
+
+	glog.Info("Deleting rhpamdev resources in namespace ", ns)
+	err = rd.deleteRhpamDevCustomResources(ns)
+	if err != nil {
+		return &brokerapi.DeprovisionResponse{}, errors.Wrap(err, fmt.Sprintf("failed to delete rhpamdev resources in namespace %s", ns))
+	}
+
+	// Clusterrole
+	err = rd.k8sClient.RbacV1beta1().ClusterRoleBindings().Delete("rhpam-dev-operator-"+ns, &metav1.DeleteOptions{})
+	if err != nil {
+		glog.Errorf("failed to delete clusterrolebinding: %+v", err)
+		return &brokerapi.DeprovisionResponse{}, errors.Wrap(err, "failed to delete clusterrolebinding for rhpam service")
+	}
+
+	// ClusterRoleBinding
+	err = rd.k8sClient.RbacV1beta1().ClusterRoles().Delete("rhpam-dev-operator-"+ns, &metav1.DeleteOptions{})
+	if err != nil {
+		glog.Errorf("failed to delete rhpam clusterrole: %+v", err)
+		return &brokerapi.DeprovisionResponse{}, errors.Wrap(err, "failed to delete clusterrole for rhpam service")
+	}
+
+	err = rd.k8sClient.CoreV1().Namespaces().Delete(ns, &metav1.DeleteOptions{})
 	if err != nil && !strings.Contains(err.Error(), "not found") {
 		glog.Errorf("failed to delete %s namespace: %+v", ns, err)
 		return &brokerapi.DeprovisionResponse{}, errors.Wrap(err, fmt.Sprintf("failed to delete namespace %s", ns))
@@ -120,7 +174,7 @@ func (rd *RhpamDeployer) ServiceInstanceLastOperation(req *brokerapi.LastOperati
 	namespace := "rhpam-" + req.InstanceId
 	switch req.Operation {
 	case "deploy":
-		cr, err := getRhpam(namespace)
+		cr, err := getRhpamDev(namespace)
 		if err != nil {
 			return nil, err
 		}
@@ -154,7 +208,7 @@ func (rd *RhpamDeployer) ServiceInstanceLastOperation(req *brokerapi.LastOperati
 			Description: "rhpam is deleting",
 		}, nil
 	default:
-		cr, err := getRhpam(namespace)
+		cr, err := getRhpamDev(namespace)
 		if err != nil {
 			return nil, err
 		}
@@ -205,6 +259,14 @@ func (rd *RhpamDeployer) createRoleBindings(namespace string, userInfo v1.UserIn
 	return nil
 }
 
+func (rd *RhpamDeployer) createClusterRoleBinding(namespace string, k8sclient kubernetes.Interface) error {
+	_, err := k8sclient.RbacV1beta1().ClusterRoleBindings().Create(getClusterRoleBindingObj(namespace))
+	if err != nil {
+		return errors.Wrap(err, "failed to create install cluster role binding for rhpam service")
+	}
+	return nil
+}
+
 func (rd *RhpamDeployer) createRhpamOperator(namespace string, osClientFactory *openshift.ClientFactory) error {
 	dcClient, err := osClientFactory.AppsClient()
 	if err != nil {
@@ -219,9 +281,14 @@ func (rd *RhpamDeployer) createRhpamOperator(namespace string, osClientFactory *
 	return nil
 }
 
-// Create the rhpam custom resource template
-func (rd *RhpamDeployer) createRhpamCustomResourceTemplate(namespace string) *v1alpha1.RhpamDev {
-	return getRhpamObj(namespace)
+// Create the rhpam dev custom resource template
+func (rd *RhpamDeployer) createRhpamDevCustomResourceTemplate(namespace string) *v1alpha1.RhpamDev {
+	return getRhpamDevObj(namespace)
+}
+
+// Create the rhpam user custom resource template
+func (rd *RhpamDeployer) createRhpamUserCustomResourceTemplate(namespace string) *v1alpha1.RhpamUser {
+	return getRhpamUserObj(namespace)
 }
 
 // Get route hostname for rhpam
@@ -234,8 +301,8 @@ func (rd *RhpamDeployer) getRouteHostname(namespace string) string {
 	return routeHostname
 }
 
-// Create the rhpam custom resource
-func (rd *RhpamDeployer) createRhpamCustomResource(namespace string, rhpam *v1alpha1.RhpamDev) error {
+// Create the rhpam dev custom resource
+func (rd *RhpamDeployer) createRhpamDevCustomResource(namespace string, rhpam *v1alpha1.RhpamDev) error {
 	client, _, err := k8sClient.GetResourceClient(v1alpha1.ApiVersion(), "RhpamDev", namespace)
 	if err != nil {
 		return err
@@ -249,8 +316,89 @@ func (rd *RhpamDeployer) createRhpamCustomResource(namespace string, rhpam *v1al
 	return nil
 }
 
+// Delete the rhpam dev Custom Resource
+func (rd *RhpamDeployer) deleteRhpamDevCustomResource(namespace string, rhpam string) error {
+	client, _, err := k8sClient.GetResourceClient(v1alpha1.ApiVersion(), "RhpamDev", namespace)
+	if err != nil {
+		return err
+	}
+	err = client.Delete(rhpam, &metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// delete the rhpam dev Custom Resources
+func (rd *RhpamDeployer) deleteRhpamDevCustomResources(namespace string) error {
+	client, _, err := k8sClient.GetResourceClient(v1alpha1.ApiVersion(), "RhpamDev", namespace)
+	if err != nil {
+		return err
+	}
+	list, err := client.List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	// cast to unstructured
+	rhpamdevs := list.(*unstructured.UnstructuredList)
+	for _, u := range rhpamdevs.Items {
+		if err := rd.deleteRhpamDevCustomResource(namespace, u.GetName()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Delete the rhpam user Custom Resource
+func (rd *RhpamDeployer) deleteRhpamUserCustomResource(namespace string, rhpamuser string) error {
+	client, _, err := k8sClient.GetResourceClient(v1alpha1.ApiVersion(), "RhpamUser", namespace)
+	if err != nil {
+		return err
+	}
+	err = client.Delete(rhpamuser, &metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// delete the rhpam dev Custom Resources
+func (rd *RhpamDeployer) deleteRhpamUserCustomResources(namespace string) error {
+	client, _, err := k8sClient.GetResourceClient(v1alpha1.ApiVersion(), "RhpamUser", namespace)
+	if err != nil {
+		return err
+	}
+	list, err := client.List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	// cast to unstructured
+	rhpamusers := list.(*unstructured.UnstructuredList)
+	for _, u := range rhpamusers.Items {
+		if err := rd.deleteRhpamUserCustomResource(namespace, u.GetName()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Create the rhpam user custom resource
+func (rd *RhpamDeployer) createRhpamUserCustomResource(namespace string, rhpam *v1alpha1.RhpamUser) error {
+	client, _, err := k8sClient.GetResourceClient(v1alpha1.ApiVersion(), "RhpamUser", namespace)
+	if err != nil {
+		return err
+	}
+
+	_, err = client.Create(k8sutil.UnstructuredFromRuntimeObject(rhpam))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Get rhpam resource in namespace
-func getRhpam(namespace string) (*v1alpha1.RhpamDev, error) {
+func getRhpamDev(namespace string) (*v1alpha1.RhpamDev, error) {
 	client, _, err := k8sClient.GetResourceClient(v1alpha1.ApiVersion(), "RhpamDev", namespace)
 	if err != nil {
 		return nil, err

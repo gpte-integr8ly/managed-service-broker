@@ -14,3 +14,7 @@ var (
 	SchemeGroupVersion  = schema.GroupVersion{Group: group, Version: version}
 	SchemeGroupResource = schema.GroupResource{Group: group, Resource: NewRhpamDev().Kind}
 )
+
+func ApiVersion() string {
+	return group + "/" + version
+}

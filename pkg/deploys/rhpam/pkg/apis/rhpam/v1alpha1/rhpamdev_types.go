@@ -6,6 +6,7 @@ import (
 
 // RhpamDevSpec defines the desired state of RhpamDev
 type RhpamDevSpec struct {
+	Domain string      `json:"domain"`
 	Config RhpamConfig `json:"config,omitempty"`
 }
 
@@ -102,8 +103,4 @@ func NewRhpamDevList() *RhpamDevList {
 			Kind:       "RhpamDev",
 		},
 	}
-}
-
-func ApiVersion() string {
-	return group + "/" + version
 }
