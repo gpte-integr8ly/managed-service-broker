@@ -60,13 +60,22 @@ func (rd *RhpamDeployer) Deploy(req *brokerapi.ProvisionRequest, async bool) (*b
 		}, errors.Wrap(err, "failed to create service account for rhpam service")
 	}
 
-	//Role
+	// Role
 	_, err = rd.k8sClient.RbacV1beta1().Roles(namespace).Create(getRoleObj())
 	if err != nil {
 		glog.Errorf("failed to create rhpamrole: %+v", err)
 		return &brokerapi.ProvisionResponse{
 			Code: http.StatusInternalServerError,
 		}, errors.Wrap(err, "failed to create role for rhpam service")
+	}
+
+	// Role for user
+	_, err = rd.k8sClient.RbacV1beta1().Roles(namespace).Create(getUserRoleObj())
+	if err != nil {
+		glog.Errorf("failed to create rhpamrole: %+v", err)
+		return &brokerapi.ProvisionResponse{
+			Code: http.StatusInternalServerError,
+		}, errors.Wrap(err, "failed to create role for rhpam service user")
 	}
 
 	// RoleBindings
@@ -236,6 +245,11 @@ func (rd *RhpamDeployer) createRoleBindings(namespace string, userInfo v1.UserIn
 		return errors.Wrap(err, "failed to create install role binding for rhpam service")
 	}
 
+	_, err = k8sclient.RbacV1beta1().RoleBindings(namespace).Create(getUserRoleBindingObj(namespace, userInfo.Username))
+	if err != nil {
+		return errors.Wrap(err, "failed to create user role binding for rhpam service")
+	}
+
 	authClient, err := osClientFactory.AuthClient()
 	if err != nil {
 		return errors.Wrap(err, "failed to create an openshift authorization client")
@@ -254,6 +268,11 @@ func (rd *RhpamDeployer) createRoleBindings(namespace string, userInfo v1.UserIn
 	_, err = authClient.RoleBindings(namespace).Create(getUserViewRoleBindingObj(namespace, userInfo.Username))
 	if err != nil {
 		return errors.Wrap(err, "failed to create user view role binding for rhpam service")
+	}
+
+	_, err = authClient.RoleBindings(namespace).Create(getUserEditRoleBindingObj(namespace, userInfo.Username))
+	if err != nil {
+		return errors.Wrap(err, "failed to create user edit role binding for rhpam service")
 	}
 
 	return nil

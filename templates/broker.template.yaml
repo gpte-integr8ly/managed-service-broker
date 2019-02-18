@@ -139,7 +139,9 @@ objects:
       resources:
       - rhpamdevs
       - rhpamdevs/finalizers
-      verbs: ["create", "delete", "deletecollection", "get", "list", "update", "watch"] 
+      - rhpamusers
+      - rhpamusers/finalizers
+      verbs: ["create", "delete", "deletecollection", "get", "list", "update", "watch", "patch"] 
     - apiGroups:
       - ""
       resources:
@@ -192,7 +194,6 @@ objects:
       - routes
       - routes/custom-host
       verbs: ["create", "delete", "deletecollection", "get", "list", "update", "watch"]
-
   - apiVersion: rbac.authorization.k8s.io/v1
     kind: ClusterRoleBinding
     metadata:

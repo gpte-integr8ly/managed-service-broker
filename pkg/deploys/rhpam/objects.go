@@ -156,6 +156,22 @@ func getRoleObj() *rbacv1beta1.Role {
 	}
 }
 
+// User role
+func getUserRoleObj() *rbacv1beta1.Role {
+	return &rbacv1beta1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "rhpam-dev-user",
+		},
+		Rules: []rbacv1beta1.PolicyRule{
+			{
+				APIGroups: []string{"rhpam.integreatly.org"},
+				Resources: []string{"rhpamdevs", "rhpamusers"},
+				Verbs:     []string{"get", "list", "update", "watch", "patch"},
+			},
+		},
+	}
+}
+
 // System specific role bindings
 func getSystemRoleBindings(namespace string) []rbacv1beta1.RoleBinding {
 	return []rbacv1beta1.RoleBinding{
@@ -277,6 +293,44 @@ func getUserViewRoleBindingObj(namespace, username string) *authv1.RoleBinding {
 			Name: "view",
 		},
 		Subjects: []corev1.ObjectReference{
+			{
+				Kind: "User",
+				Name: username,
+			},
+		},
+	}
+}
+
+func getUserEditRoleBindingObj(namespace, username string) *authv1.RoleBinding {
+	return &authv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "rhpam-dev-operator:edit-",
+			Namespace:    namespace,
+		},
+		RoleRef: corev1.ObjectReference{
+			Name: "edit",
+		},
+		Subjects: []corev1.ObjectReference{
+			{
+				Kind: "User",
+				Name: username,
+			},
+		},
+	}
+}
+
+func getUserRoleBindingObj(namespace, username string) *rbacv1beta1.RoleBinding {
+	return &rbacv1beta1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "rhpam-dev-operator:user-",
+			Namespace:    namespace,
+		},
+		RoleRef: rbacv1beta1.RoleRef{
+			Kind:     "Role",
+			Name:     "rhpam-dev-user",
+			APIGroup: "rbac.authorization.k8s.io",
+		},
+		Subjects: []rbacv1beta1.Subject{
 			{
 				Kind: "User",
 				Name: username,
