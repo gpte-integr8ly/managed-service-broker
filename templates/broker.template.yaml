@@ -69,6 +69,10 @@ objects:
               value: ${FUSE_OPERATOR_RESOURCES_URL}
             - name: RHPAM_ENABLED
               value: ${RHPAM_ENABLED}
+            - name: SSO_NAMESPACE
+              value: ${SSO_NAMESPACE}
+            - name: SSO_ADMIN_CREDENTIALS_SECRET
+              value: ${SSO_ADMIN_CREDENTIALS_SECRET}
             ports:
             - containerPort: 8080
             readinessProbe:
