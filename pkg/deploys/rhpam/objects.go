@@ -34,8 +34,8 @@ func getCatalogServicesObj() []*brokerapi.Service {
 			},
 			Plans: []brokerapi.ServicePlan{
 				{
-					Name:        "default-rhpam",
-					ID:          "default-rhpam",
+					Name:        "default-rhpam-dev",
+					ID:          "default-rhpam-dev",
 					Description: "default rhpam plan",
 					Free:        true,
 					Schemas: &brokerapi.Schemas{
